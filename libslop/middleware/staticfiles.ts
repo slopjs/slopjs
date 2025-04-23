@@ -1,6 +1,14 @@
 import type { SlopRequest, SlopResponse, NextFunction } from "../..";
 
-export function staticFiles(directory: string, indexFile = "index.html") {
+export function staticFiles(
+  directory: string,
+  options: {
+    indexFile?: string;
+    spaMode?: boolean;
+  } = {},
+) {
+  const { indexFile = "index.html", spaMode = false } = options;
+
   // Get absolute path to the directory
   const absDirectory = (() => {
     // Handle relative paths
@@ -16,7 +24,9 @@ export function staticFiles(directory: string, indexFile = "index.html") {
     return directory;
   })();
 
-  console.log(`Serving static files from: ${absDirectory}`);
+  console.log(
+    `Serving static files from: ${absDirectory} (SPA mode: ${spaMode})`,
+  );
 
   return async (req: SlopRequest, res: SlopResponse, next: NextFunction) => {
     // Only handle GET requests
@@ -30,23 +40,57 @@ export function staticFiles(directory: string, indexFile = "index.html") {
       filePath = `/${indexFile}`;
     }
 
-    // Remove leading slash and resolve path
-    filePath = filePath.substring(1);
-    const fullPath = `${absDirectory}/${filePath}`;
+    // Remove leading slash for file path resolution
+    const cleanPath = filePath.substring(1);
 
-    console.log(`Attempting to serve: ${fullPath}`);
+    // Normalize paths to avoid double slashes
+    const normalizePath = (path: string) => {
+      return path.replace(/\/+/g, "/");
+    };
 
-    try {
-      await res.sendFile(fullPath);
+    // Try different path strategies in order
+    const pathsToTry = [
+      // 1. Direct file match
+      normalizePath(`${absDirectory}/${cleanPath}`),
 
-      // Check if file was found - if status is 404, call next()
-      if (res.statusCode === 404) {
-        console.log(`File not found: ${fullPath}`);
-        return next();
+      // 2. For paths without extensions, try as directory with index file
+      ...(!/\.\w+$/.test(cleanPath)
+        ? [
+            // Add index.html, ensuring no double slashes
+            normalizePath(
+              `${absDirectory}/${cleanPath}${cleanPath.endsWith("/") ? "" : "/"}${indexFile}`,
+            ),
+          ]
+        : []),
+
+      // 3. SPA fallback (only if enabled and not an asset request)
+      ...(spaMode &&
+      !cleanPath.match(
+        /\.(js|css|png|jpg|jpeg|gif|ico|svg|json|woff|woff2|ttf|eot)$/i,
+      )
+        ? [normalizePath(`${absDirectory}/${indexFile}`)]
+        : []),
+    ];
+
+    // Try each path until one works
+    for (const pathToTry of pathsToTry) {
+      console.log(`Attempting to serve: ${pathToTry}`);
+
+      try {
+        await res.sendFile(pathToTry);
+
+        // If successful (not 404), we're done
+        if (res.statusCode !== 404) {
+          return;
+        }
+      } catch (err) {
+        // Continue to next path on error
+        console.log(`Error serving ${pathToTry}: ${err.message}`);
       }
-    } catch (err) {
-      console.error(`Static file error: ${err}`);
-      next();
     }
+
+    // If we get here, none of our path strategies worked
+    console.log(`No static file found for: ${filePath}`);
+    return next();
   };
 }

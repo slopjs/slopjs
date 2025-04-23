@@ -11,7 +11,7 @@ app.use((req: SlopRequest, res: SlopResponse, next: NextFunction) => {
   next();
 });
 
-app.use(staticFiles("web"));
+app.use(staticFiles("web", { spaMode: true }));
 
 app.get("/users/:id", (req: SlopRequest, res: SlopResponse) => {
   res.json({
