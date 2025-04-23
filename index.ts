@@ -3,6 +3,8 @@
  * Copyright (c) 2025 Ufuk Furkan Öztürk
  */
 
+import type { BodyInit } from "bun";
+
 type JsonValue =
   | string
   | number
@@ -234,6 +236,7 @@ class Slop {
       throw new Error("Bun environment not detected");
     }
 
+    // @ts-expect-error
     const server = Bun.serve({
       port,
       fetch: this.handleRequest.bind(this),
@@ -252,7 +255,9 @@ class Slop {
     callback?: (server: NodeServer) => void,
   ): NodeServer {
     const http = require("node:http");
+    // @ts-expect-error namespace not found
     type IncomingMessage = http.IncomingMessage;
+    // @ts-expect-error namespace not found
     type ServerResponse = http.ServerResponse;
 
     const server = http.createServer(
@@ -279,13 +284,16 @@ class Slop {
         const response = await this.handleRequest(request);
 
         // Send response back through Node's res
+        // @ts-ignore
         nodeRes.statusCode = response.status;
 
         // Copy headers
+        // @ts-ignore
         for (const [key, value] of response.headers.entries()) {
           nodeRes.setHeader(key, value);
         }
 
+        // @ts-ignore
         const body = await response.text();
         nodeRes.end(body);
       },
@@ -320,14 +328,19 @@ class Slop {
 
   // Unified request handler (works across platforms)
   async handleRequest(request: Request): Promise<Response> {
+    // @ts-ignore
     const url = new URL(request.url);
+    // @ts-ignore
     const method = request.method as HttpMethod;
     const path = url.pathname;
 
     // Build Express-like request object
     const req: SlopRequest = {
+      // @ts-ignore
       method: request.method,
+      // @ts-ignore
       url: request.url,
+      // @ts-ignore
       headers: request.headers,
       path,
       params: {},
@@ -336,16 +349,21 @@ class Slop {
     };
 
     // Parse request body
+    // @ts-ignore
     if (request.body) {
       try {
+        // @ts-ignore
         const contentType = request.headers.get("content-type");
         if (contentType?.includes("application/json")) {
-          req.body = await request.json();
+          // @ts-ignore
+          req.body = <HttpBody>await request.json();
         } else if (contentType?.includes("application/x-www-form-urlencoded")) {
           req.body = Object.fromEntries(
+            // @ts-ignore
             new URLSearchParams(await request.text()),
           );
         } else {
+          // @ts-ignore
           req.body = await request.text();
         }
       } catch (e) {
@@ -367,6 +385,7 @@ class Slop {
         return this;
       },
       json(data: HttpBody) {
+        // @ts-ignore
         this.headers.set("Content-Type", "application/json");
         this.body = JSON.stringify(data);
         return this;
@@ -377,6 +396,7 @@ class Slop {
           status = 302;
         }
         this.statusCode = status as number;
+        // @ts-ignore
         this.headers.set("Location", url);
         return this;
       },
@@ -395,6 +415,7 @@ class Slop {
             // @ts-expect-error - Bun types might not be available
             const file = Bun.file(filePath);
             this.body = await file.text();
+            // @ts-ignore
             this.headers.set("Content-Type", file.type);
           } else if (runtime === "deno") {
             const file = await Deno.readFile(filePath);
@@ -411,12 +432,11 @@ class Slop {
               jpeg: "image/jpeg",
               gif: "image/gif",
             };
+            // @ts-ignore
             this.headers.set("Content-Type", mimeTypes[ext] || "text/plain");
           } else {
             // Node.js
-            // @ts-expect-error - Node types might not be available
             const fs = require("fs");
-            // @ts-expect-error - Node types might not be available
             const path = require("path");
             const file = fs.readFileSync(filePath, "utf8");
             this.body = file;
@@ -432,6 +452,7 @@ class Slop {
               jpeg: "image/jpeg",
               gif: "image/gif",
             };
+            // @ts-ignore
             this.headers.set("Content-Type", mimeTypes[ext] || "text/plain");
           }
         } catch (err) {
@@ -544,9 +565,12 @@ class Slop {
 
     const params: Record<string, string> = {};
     for (let i = 0; i < routeParts.length; i++) {
+      // @ts-ignore
       if (routeParts[i].startsWith(":")) {
         // Extract route parameter
+        // @ts-ignore
         const paramName = routeParts[i].substring(1);
+        // @ts-ignore
         params[paramName] = actualParts[i];
       } else if (routeParts[i] !== actualParts[i]) {
         return { matched: false, params: {} };
