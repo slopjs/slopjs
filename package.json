@@ -1,14 +1,14 @@
 {
-	"version": "0.0.1",
-	"name": "slopjs",
-	"module": "index.ts",
-	"type": "module",
-	"devDependencies": {
-		"@types/bun": "^1.2.10",
-		"@types/deno": "^2.2.0",
-		"@types/node": "^22.14.1"
-	},
-	"peerDependencies": {
-		"typescript": "^5.8.3"
-	}
+  "version": "0.0.2",
+  "name": "slopjs",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "^1.2.10",
+    "@types/deno": "^2.2.0",
+    "@types/node": "^22.14.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5.8.3"
+  }
 }
